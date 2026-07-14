@@ -1,0 +1,11 @@
+# Build Maven
+target/
+dependency-reduced-pom.xml
+
+# File di sistema macOS
+.DS_Store
+
+# File degli IDE
+.idea/
+.vscode/
+*.iml
