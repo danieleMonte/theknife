@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- Daniele Montefiore, Matricola: 736906, Sede: VA -->
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="theknife.client.controller.RegistrazioneController"
+      alignment="CENTER" spacing="10">
+    <padding><Insets top="25" right="80" bottom="25" left="80"/></padding>
+
+    <Label text="Registrazione a TheKnife" style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+    <Separator/>
+
+    <TextField fx:id="campoNome" promptText="Nome *"/>
+    <TextField fx:id="campoCognome" promptText="Cognome *"/>
+    <TextField fx:id="campoUsername" promptText="Username / E-mail *"/>
+    <PasswordField fx:id="campoPassword" promptText="Password *"/>
+    <PasswordField fx:id="campoConferma" promptText="Conferma password *"/>
+    <DatePicker fx:id="campoDataNascita" promptText="Data di nascita (facoltativa)" maxWidth="Infinity"/>
+    <ComboBox fx:id="campoDomicilio" promptText="Luogo del domicilio (cerca una citta') *" maxWidth="Infinity"/>
+
+    <HBox alignment="CENTER" spacing="8">
+        <Label text="Registrati come:"/>
+        <ChoiceBox fx:id="sceltaRuolo"/>
+    </HBox>
+
+    <Label fx:id="etichettaErrore" style="-fx-text-fill: red;" wrapText="true"/>
+
+    <HBox alignment="CENTER" spacing="10">
+        <Button text="Registrati" onAction="#onConferma" defaultButton="true"/>
+        <Button text="Annulla" onAction="#onAnnulla" cancelButton="true"/>
+    </HBox>
+</VBox>

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- Daniele Montefiore, Matricola: 736906, Sede: VA -->
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="theknife.client.controller.MainController">
+
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #14532d;">
+            <padding><Insets top="10" right="15" bottom="10" left="15"/></padding>
+            <Label text="TheKnife" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="etichettaUtente" style="-fx-text-fill: white;"/>
+            <Button text="Esci" onAction="#onEsci"/>
+        </HBox>
+    </top>
+
+    <center>
+        <TabPane fx:id="pannelloTab" tabClosingPolicy="UNAVAILABLE">
+
+            <!-- Ricerca e ristoranti vicini: disponibile a tutti -->
+            <Tab fx:id="tabRistoranti" text="Ristoranti">
+                <VBox spacing="8">
+                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <ComboBox fx:id="campoCitta" promptText="Citta' *" prefWidth="180"/>
+                        <TextField fx:id="campoDistanzaMin" promptText="Dist. min km (0)" prefWidth="110"/>
+                        <TextField fx:id="campoDistanzaMax" promptText="Dist. max km (30)" prefWidth="115"/>
+                        <TextField fx:id="campoCucina" promptText="Tipo di cucina" prefWidth="130"/>
+                        <TextField fx:id="campoPrezzoMin" promptText="Prezzo min €" prefWidth="100"/>
+                        <TextField fx:id="campoPrezzoMax" promptText="Prezzo max €" prefWidth="100"/>
+                    </HBox>
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <CheckBox fx:id="filtroDelivery" text="Solo con delivery"/>
+                        <CheckBox fx:id="filtroPrenotazione" text="Solo con prenotazione online"/>
+                        <Label text="Stelle minime:"/>
+                        <ChoiceBox fx:id="sceltaStelleMin" prefWidth="110"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button text="Cerca" onAction="#onCerca" defaultButton="true"/>
+                    </HBox>
+                    <Label fx:id="etichettaRisultati"/>
+                    <ListView fx:id="listaRistoranti" VBox.vgrow="ALWAYS"/>
+                    <Label text="Doppio click su un ristorante per aprirne il dettaglio e le recensioni"
+                           style="-fx-text-fill: gray;"/>
+                </VBox>
+            </Tab>
+
+            <!-- Preferiti: solo clienti -->
+            <Tab fx:id="tabPreferiti" text="Preferiti">
+                <VBox spacing="8">
+                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                    <ListView fx:id="listaPreferiti" VBox.vgrow="ALWAYS"/>
+                    <HBox spacing="8">
+                        <Button text="Rimuovi dai preferiti" onAction="#onRimuoviPreferito"/>
+                        <Label text="Doppio click per aprire il dettaglio" style="-fx-text-fill: gray;"/>
+                    </HBox>
+                </VBox>
+            </Tab>
+
+            <!-- Recensioni scritte dall'utente: solo clienti -->
+            <Tab fx:id="tabMieRecensioni" text="Le mie recensioni">
+                <VBox spacing="8">
+                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                    <ListView fx:id="listaMieRecensioni" VBox.vgrow="ALWAYS"/>
+                    <HBox spacing="8">
+                        <Button text="Modifica recensione" onAction="#onModificaRecensione"/>
+                        <Button text="Elimina recensione" onAction="#onEliminaRecensione"/>
+                    </HBox>
+                </VBox>
+            </Tab>
+
+            <!-- Riepilogo e risposta alle recensioni: solo gestori -->
+            <Tab fx:id="tabMieiRistoranti" text="I miei ristoranti">
+                <VBox spacing="8">
+                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Button text="Aggiungi ristorante" onAction="#onAggiungiRistorante"/>
+                        <Label text="Seleziona un ristorante per vederne le recensioni"
+                               style="-fx-text-fill: gray;"/>
+                    </HBox>
+                    <ListView fx:id="listaMieiRistoranti" prefHeight="180"/>
+                    <Label text="Recensioni del ristorante selezionato:" style="-fx-font-weight: bold;"/>
+                    <ListView fx:id="listaRecensioniGestore" VBox.vgrow="ALWAYS"/>
+                    <HBox spacing="8">
+                        <Button text="Rispondi alla recensione" onAction="#onRispondiRecensione"/>
+                        <Label text="Al massimo una risposta per recensione" style="-fx-text-fill: gray;"/>
+                    </HBox>
+                </VBox>
+            </Tab>
+        </TabPane>
+    </center>
+</BorderPane>
