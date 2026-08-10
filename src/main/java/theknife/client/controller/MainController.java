@@ -5,28 +5,19 @@ package theknife.client.controller;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
-import javafx.scene.layout.GridPane;
 import theknife.client.AutoCompletamento;
-import theknife.client.ClientConnection;
 import theknife.client.Navigazione;
 import theknife.client.Sessione;
-import java.util.List;
-import java.util.Optional;
+
 
 /**
  * Controller della schermata principale. Mostra i tab in base al ruolo

@@ -11,7 +11,6 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.event.ActionEvent;
 import theknife.client.AutoCompletamento;
-import theknife.client.ClientConnection;
 import theknife.client.Navigazione;
 import theknife.client.Sessione;
 

@@ -5,16 +5,11 @@ package theknife.client.controller;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
-import theknife.client.ClientConnection;
 import theknife.client.Navigazione;
-import theknife.client.Sessione;
 
 
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Controller del dettaglio di un ristorante: caratteristiche complete,

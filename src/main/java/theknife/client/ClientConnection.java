@@ -3,9 +3,7 @@
  */
 package theknife.client;
 
-// [DISATTIVATO: manca theknife.common]
-// import theknife.common.Request;
-// import theknife.common.Response;
+
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
