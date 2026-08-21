@@ -15,9 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO per la tabella {@code Preferiti}: la lista dei ristoranti
- * preferiti di un cliente. E' il DAO piu' semplice: la tabella e' solo
- * una coppia (id_utente, id_ristorante).
+ * Data Access Object per la tabella {@code Preferiti}: gestisce la lista
+ * dei ristoranti preferiti di un cliente. La tabella e' costituita dalla
+ * sola coppia (id_utente, id_ristorante), che ne rappresenta anche la
+ * chiave primaria.
  *
  * @author Daniele Montefiore
  */
@@ -25,11 +26,12 @@ public class PreferitoDAO {
 
     /**
      * Inserisce nella tabella Preferiti la coppia (utente, ristorante),
-     * ovvero aggiunge il ristorante alla lista dei preferiti del cliente.
-     * Se la coppia esiste gia' il database la ignora ({@code ON CONFLICT
-     * DO NOTHING}) e il metodo risponde comunque successo: il risultato
-     * che l'utente voleva — "il ristorante e' tra i miei preferiti" —
-     * e' vero in ogni caso, quindi un errore sarebbe fuorviante.
+     * aggiungendo il ristorante alla lista dei preferiti del cliente.
+     * Un eventuale duplicato viene ignorato dal database tramite
+     * {@code ON CONFLICT DO NOTHING} e l'operazione restituisce comunque
+     * esito positivo: la condizione attesa dall'utente, ossia la presenza
+     * del ristorante tra i preferiti, risulta soddisfatta in entrambi i
+     * casi, per cui la segnalazione di un errore sarebbe fuorviante.
      *
      * @param idUtente     identificativo del cliente (dalla sessione server)
      * @param idRistorante identificativo del ristorante da aggiungere
@@ -69,9 +71,10 @@ public class PreferitoDAO {
     }
 
     /**
-     * I ristoranti preferiti del cliente, con media stelle e numero di
-     * recensioni calcolati come nella ricerca (infatti riuso il metodo
-     * di lettura di RistoranteDAO).
+     * Restituisce i ristoranti preferiti del cliente, con media delle
+     * stelle e numero di recensioni calcolati come nella ricerca; la
+     * conversione delle righe e' delegata al metodo di lettura di
+     * {@link RistoranteDAO}, che produce risultati nello stesso formato.
      *
      * @param idUtente identificativo del cliente (dalla sessione server)
      * @return risposta con la lista dei {@link Ristorante} preferiti

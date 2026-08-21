@@ -13,12 +13,20 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import theknife.client.AutoCompletamento;
+import theknife.client.ClientConnection;
 import theknife.client.Navigazione;
-
+import theknife.common.Operazione;
+import theknife.common.Request;
+import theknife.common.Response;
+import theknife.common.Ruolo;
+import theknife.common.Utente;
 
 /**
- * Controller della schermata di registrazione di un nuovo utente
- * (cliente o gestore), con validazione dei campi obbligatori.
+ * Controller della schermata di registrazione di un nuovo utente,
+ * cliente o gestore. Le verifiche effettuate a questo livello (campi
+ * obbligatori, corrispondenza tra password e conferma) hanno finalita'
+ * di usabilita': i controlli di validita' effettivi, come l'unicita'
+ * dello username, sono eseguiti dal server.
  *
  * @author Daniele Montefiore
  */
@@ -31,31 +39,33 @@ public class RegistrazioneController {
     @FXML private PasswordField campoConferma;
     @FXML private DatePicker campoDataNascita;
     @FXML private ComboBox<String> campoDomicilio;
-    @FXML private ChoiceBox<String> sceltaRuolo; // [PROVVISORIO: era ChoiceBox<Ruolo>, manca theknife.common]
+    @FXML private ChoiceBox<Ruolo> sceltaRuolo;
     @FXML private Label etichettaErrore;
 
     /** Popola la scelta del ruolo e l'autocompletamento del domicilio. */
     @FXML
     private void initialize() {
-        /* gestione della scelta del ruolo e dell'autocompletamento del domicilio
-        */
-        sceltaRuolo.getItems().setAll("CLIENTE", "GESTORE"); // [PROVVISORIO]
-        sceltaRuolo.setValue("CLIENTE"); // [PROVVISORIO]
+        sceltaRuolo.getItems().setAll(Ruolo.values());
+        sceltaRuolo.setValue(Ruolo.CLIENTE);
         AutoCompletamento.applicaCitta(campoDomicilio);
     }
 
-    /** Valida i campi, invia la registrazione al server e torna al login. */
+    /** Valida i campi, invia la richiesta di registrazione al server e ritorna alla schermata di login. */
     @FXML
     private void onConferma(ActionEvent evento) {
         String nome = campoNome.getText().trim();
         String cognome = campoCognome.getText().trim();
-        String username = campoUsername.getText().trim();
+        String email = campoUsername.getText().trim();
         String password = campoPassword.getText();
         String domicilio = AutoCompletamento.testo(campoDomicilio);
 
-        if (nome.isEmpty() || cognome.isEmpty() || username.isEmpty()
+        if (nome.isEmpty() || cognome.isEmpty() || email.isEmpty()
                 || password.isEmpty() || domicilio.isEmpty()) {
             etichettaErrore.setText("Compila tutti i campi obbligatori (*)");
+            return;
+        }
+        if (!Utente.emailValida(email)) {
+            etichettaErrore.setText("Indirizzo e-mail non valido (es. nome@dominio.it)");
             return;
         }
         if (!password.equals(campoConferma.getText())) {
@@ -63,9 +73,21 @@ public class RegistrazioneController {
             return;
         }
 
-        /* creare la richiesta di registrazione al server e gestire la risposta
-        */
-        etichettaErrore.setText("Registrazione non disponibile: manca il package theknife.common");
+        Request richiesta = new Request(Operazione.REGISTRAZIONE)
+                .con("nome", nome)
+                .con("cognome", cognome)
+                .con("username", email)
+                .con("password", password)
+                .con("dataNascita", campoDataNascita.getValue()) // puo' essere null
+                .con("domicilio", domicilio)
+                .con("ruolo", sceltaRuolo.getValue());
+        Response risposta = ClientConnection.getIstanza().invia(richiesta);
+        if (risposta.isSuccesso()) {
+            Navigazione.mostraInfo("Registrazione completata: ora puoi accedere");
+            tornaAlLogin(evento);
+        } else {
+            etichettaErrore.setText(risposta.getMessaggio());
+        }
     }
 
     /** Annulla la registrazione e torna al login. */

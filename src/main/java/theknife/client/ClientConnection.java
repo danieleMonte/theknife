@@ -3,7 +3,8 @@
  */
 package theknife.client;
 
-
+import theknife.common.Request;
+import theknife.common.Response;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -11,9 +12,11 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 /**
- * Connessione del client verso il server TheKnife (pattern Singleton).
- * Apre il socket alla prima richiesta e serializza l'invio delle
- * richieste, cosi' da poter essere usata da piu' punti della GUI.
+ * Gestisce l'unica connessione del client verso il server, secondo il
+ * pattern Singleton. Il socket viene aperto alla prima richiesta; il
+ * metodo {@link #invia(Request)} e' dichiarato {@code synchronized}
+ * poiche' sullo stesso socket le coppie richiesta/risposta devono
+ * susseguirsi in modo ordinato e non possono sovrapporsi.
  *
  * @author Daniele Montefiore
  */
@@ -45,15 +48,29 @@ public final class ClientConnection {
     }
 
     /**
-     * Invia una richiesta al server e ne attende la risposta.
-     * La connessione viene aperta alla prima chiamata.
+     * Invia una richiesta al server e ne attende la risposta. In caso di
+     * errore di comunicazione (server non attivo o rete non disponibile)
+     * non viene propagata alcuna eccezione verso l'interfaccia grafica: il
+     * metodo restituisce una normale risposta di errore, che i controller
+     * gestiscono come qualsiasi altro esito negativo.
      *
      * @param richiesta richiesta da inviare
      * @return risposta del server, o una risposta di errore se la
      *         comunicazione fallisce
      */
-    /* da creare l'invio della richiesta al server e la ricezione della risposta 
-    */
+    public synchronized Response invia(Request richiesta) {
+        try {
+            if (socket == null || socket.isClosed()) {
+                connetti();
+            }
+            out.writeObject(richiesta);
+            out.flush();
+            out.reset();
+            return (Response) in.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            return Response.errore("Impossibile comunicare col server: " + e.getMessage());
+        }
+    }
 
     private void connetti() throws IOException {
         socket = new Socket(HOST, PORTA);
@@ -61,14 +78,15 @@ public final class ClientConnection {
         in = new ObjectInputStream(socket.getInputStream());
     }
 
-    /** Chiude la connessione col server, se aperta. */
+    /** Chiude la connessione verso il server, se aperta. */
     public synchronized void chiudi() {
         try {
             if (socket != null) {
                 socket.close();
             }
         } catch (IOException e) {
-            // la chiusura fallita non e' un errore per l'utente
+            // Il fallimento della chiusura non costituisce un errore
+            // rilevante per l'utente e non richiede segnalazione.
         }
     }
 }

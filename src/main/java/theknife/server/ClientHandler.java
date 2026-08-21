@@ -19,14 +19,15 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 /**
- * Serve un singolo client, su un thread tutto suo: legge una
- * {@link Request} alla volta, la smista con lo switch e rimanda
- * indietro la {@link Response}.
+ * Gestisce la sessione di un singolo client su un thread dedicato: legge
+ * una {@link Request} alla volta, la smista all'operazione corrispondente
+ * e restituisce la {@link Response} risultante.
  * <p>
- * L'utente loggato sta qui dentro (un handler = una sessione). E' una
- * scelta di sicurezza: per le operazioni riservate uso l'identita' che
- * il server ha verificato col login, mai un id mandato dal client —
- * altrimenti basterebbe un client modificato per spacciarsi per un altro.
+ * L'utente autenticato e' mantenuto nell'handler stesso, che coincide
+ * quindi con la sessione del client. La scelta risponde a un requisito di
+ * sicurezza: le operazioni riservate utilizzano l'identita' verificata dal
+ * server in fase di login e mai un identificativo trasmesso dal client, che
+ * altrimenti potrebbe essere alterato per impersonare un altro utente.
  *
  * @author Daniele Montefiore
  */
@@ -38,7 +39,7 @@ public class ClientHandler implements Runnable {
     private final RecensioneDAO recensioneDAO = new RecensioneDAO();
     private final PreferitoDAO preferitoDAO = new PreferitoDAO();
 
-    /** Chi ha fatto il login in questa sessione; null finche' si e' guest. */
+    /** Utente autenticato nella sessione corrente; {@code null} per gli utenti guest. */
     private Utente utenteLoggato;
 
     /**
@@ -50,7 +51,7 @@ public class ClientHandler implements Runnable {
         this.socket = socket;
     }
 
-    /** Cicla sulle richieste del client finche' la connessione resta aperta. */
+    /** Elabora le richieste del client finche' la connessione rimane aperta. */
     @Override
     public void run() {
         try (ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
@@ -61,8 +62,9 @@ public class ClientHandler implements Runnable {
                 Response risposta = gestisci(richiesta);
                 out.writeObject(risposta);
                 out.flush();
-                // senza reset() lo stream ricorda gli oggetti gia' inviati e
-                // alla seconda risposta uguale manderebbe quella vecchia
+                // Senza reset() lo stream mantiene in cache gli oggetti gia'
+                // serializzati e, a fronte di un successivo invio, trasmetterebbe
+                // un riferimento alla versione precedente anziche' i dati aggiornati.
                 out.reset();
             }
         } catch (EOFException e) {
@@ -73,16 +75,18 @@ public class ClientHandler implements Runnable {
             try {
                 socket.close();
             } catch (IOException e) {
-                // la chiusura fallita a fine sessione non richiede altre azioni
+                // Il fallimento della chiusura a fine sessione non richiede
+                // ulteriori azioni correttive.
             }
         }
     }
 
     /**
-     * Lo smistamento vero e proprio. Le operazioni riservate controllano
-     * il ruolo come prima cosa. Il try/catch esterno trasforma qualunque
-     * eccezione in una Response di errore: il client deve ricevere sempre
-     * una risposta, altrimenti resterebbe bloccato in attesa.
+     * Smista la richiesta all'operazione corrispondente. Le operazioni
+     * riservate verificano preliminarmente il ruolo dell'utente autenticato.
+     * Il blocco try/catch esterno converte qualsiasi eccezione in una
+     * risposta di errore, garantendo che il client riceva sempre un esito e
+     * non rimanga in attesa indefinita.
      *
      * @param richiesta richiesta ricevuta dal client
      * @return risposta da inviare al client
@@ -154,6 +158,12 @@ public class ClientHandler implements Runnable {
                         return Response.errore("Operazione riservata ai gestori registrati");
                     }
                     return ristoranteDAO.aggiungiRistorante(utenteLoggato.getId(), richiesta);
+                case RIVENDICA_RISTORANTE:
+                    if (!isGestore()) {
+                        return Response.errore("Operazione riservata ai gestori registrati");
+                    }
+                    return ristoranteDAO.rivendicaRistorante(utenteLoggato.getId(),
+                            (Integer) richiesta.get("idRistorante"));
                 case VISUALIZZA_RIEPILOGO:
                     if (!isGestore()) {
                         return Response.errore("Operazione riservata ai gestori registrati");
@@ -175,8 +185,10 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Il login passa da qui e non va dritto al DAO perche', se va a buon
-     * fine, devo ricordarmi chi si e' autenticato in questa sessione.
+     * Esegue l'autenticazione delegando al DAO e, in caso di esito
+     * positivo, registra l'identita' dell'utente nella sessione corrente.
+     * Per questa ragione l'operazione non e' inoltrata direttamente al DAO
+     * come le altre.
      *
      * @param richiesta richiesta con username e password
      * @return risposta del login
@@ -192,12 +204,12 @@ public class ClientHandler implements Runnable {
         return risposta;
     }
 
-    /** @return {@code true} se in questa sessione e' loggato un cliente */
+    /** @return {@code true} se nella sessione corrente e' autenticato un cliente */
     private boolean isCliente() {
         return utenteLoggato != null && utenteLoggato.getRuolo() == Ruolo.CLIENTE;
     }
 
-    /** @return {@code true} se in questa sessione e' loggato un gestore */
+    /** @return {@code true} se nella sessione corrente e' autenticato un gestore */
     private boolean isGestore() {
         return utenteLoggato != null && utenteLoggato.getRuolo() == Ruolo.GESTORE;
     }

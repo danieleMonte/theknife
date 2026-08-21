@@ -8,10 +8,11 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /**
- * Tiene i parametri di connessione al database (chiesti all'avvio del
- * server, come vogliono le specifiche) e apre le connessioni JDBC per
- * i DAO. E' un singleton: i parametri si impostano una volta sola e
- * poi tutti li leggono da qui.
+ * Gestisce i parametri di connessione al database, acquisiti all'avvio
+ * del server come previsto dalle specifiche, e fornisce ai DAO le
+ * connessioni JDBC. Implementa il pattern Singleton: i parametri sono
+ * configurati una sola volta e successivamente condivisi da tutti i
+ * componenti che accedono alla base di dati.
  *
  * @author Daniele Montefiore
  */
@@ -30,8 +31,9 @@ public final class DBConnection {
     }
 
     /**
-     * Salva i parametri e prova subito una connessione: meglio scoprire
-     * le credenziali sbagliate all'avvio che alla prima richiesta di un client.
+     * Memorizza i parametri di connessione ed esegue immediatamente una
+     * connessione di verifica, in modo da rilevare eventuali credenziali
+     * errate gia' all'avvio anziche' alla prima richiesta di un client.
      *
      * @param host     host del DBMS (es. {@code localhost:5432})
      * @param nomeDb   nome del database (es. {@code dbtk})
@@ -42,7 +44,8 @@ public final class DBConnection {
     public static synchronized void inizializza(String host, String nomeDb,
                                                 String utente, String password) throws SQLException {
         istanza = new DBConnection(host, nomeDb, utente, password);
-        // connessione di prova: fallisce subito se i parametri sono errati
+        // Connessione di verifica: solleva immediatamente un'eccezione se i
+        // parametri forniti non sono validi.
         istanza.nuovaConnessione().close();
     }
 
@@ -60,9 +63,10 @@ public final class DBConnection {
     }
 
     /**
-     * Apre una connessione nuova ogni volta. Ho scelto di non condividere
-     * un'unica connessione tra i thread: ognuno apre la sua, la usa e la
-     * chiude, cosi' non ci sono problemi di concorrenza lato JDBC.
+     * Apre una nuova connessione al database a ogni invocazione. Le
+     * connessioni non sono condivise tra i thread: ciascuno ne apre una
+     * propria, la utilizza e la chiude, evitando cosi' problemi di
+     * concorrenza a livello JDBC.
      *
      * @return nuova connessione JDBC (da chiudere con try-with-resources)
      * @throws SQLException in caso di errore di connessione

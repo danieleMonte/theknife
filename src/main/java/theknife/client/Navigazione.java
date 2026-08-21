@@ -14,8 +14,11 @@ import javafx.stage.Window;
 import java.io.IOException;
 
 /**
- * Utilita' di navigazione tra le schermate del client:
- * cambio di scena nella finestra principale e apertura di dialoghi modali.
+ * Classe di utilita' per la navigazione tra le schermate del client. La
+ * sequenza di caricamento di un file FXML, creazione della Scene e
+ * assegnazione allo Stage e' identica per tutte le schermate: viene
+ * pertanto centralizzata in questa classe, insieme alla visualizzazione
+ * dei messaggi informativi e di errore.
  *
  * @author Daniele Montefiore
  */
@@ -43,9 +46,11 @@ public final class Navigazione {
     }
 
     /**
-     * Apre una schermata FXML come dialogo modale e ne restituisce il controller,
-     * cosi' il chiamante puo' passargli i dati prima della visualizzazione
-     * (dopo averlo convertito nel tipo del controller della schermata).
+     * Apre una schermata FXML come finestra modale e ne restituisce il
+     * controller, consentendo al chiamante di trasmettergli i dati
+     * necessari (ad esempio il ristorante da visualizzare) subito dopo
+     * l'apertura. Il tipo di ritorno e' {@code Object}: il cast al
+     * controller specifico e' a carico del chiamante.
      *
      * @param proprietario finestra proprietaria del dialogo
      * @param fxml        nome del file FXML (es. {@code dettaglio.fxml})

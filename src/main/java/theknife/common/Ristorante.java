@@ -6,10 +6,13 @@ package theknife.common;
 import java.io.Serializable;
 
 /**
- * Un ristorante della piattaforma: dati anagrafici, posizione, prezzo,
- * servizi e tipo di cucina. Media stelle, numero di recensioni e
- * distanza NON stanno nella tabella: le calcola il server al momento
- * e le appoggia qui solo per farle arrivare al client.
+ * Ristorante della piattaforma: dati anagrafici, posizione geografica,
+ * fascia di prezzo, servizi disponibili e tipo di cucina.
+ * <p>
+ * Media delle stelle, numero di recensioni e distanza non corrispondono a
+ * colonne della tabella: sono calcolati dal server a ogni interrogazione
+ * e valorizzati in questi campi al solo scopo di essere trasmessi al
+ * client insieme ai restanti dati.
  *
  * @author Daniele Montefiore
  */
@@ -30,12 +33,12 @@ public class Ristorante implements Serializable {
     private String tipoCucina;
     private int idGestore;
 
-    // questi due li calcola il server con una query, non esistono come colonne
+    // Statistiche calcolate dal server tramite funzioni di aggregazione
     private double mediaStelle;
     private int numeroRecensioni;
 
-    // distanza dal punto di partenza della ricerca; e' Double (e non double)
-    // perche' fuori dalla ricerca non ha senso e resta null
+    // Distanza dal punto di riferimento della ricerca; tipo Double anziche'
+    // double per poter assumere valore null quando non e' stata calcolata
     private Double distanzaKm;
 
     /** Costruttore vuoto. */

@@ -4,9 +4,10 @@
 package theknife.common;
 
 /**
- * Tutte le operazioni che il client puo' chiedere al server: una
- * costante per ogni funzionalita' delle specifiche. Dove serve un
- * ruolo particolare l'ho segnato tra parentesi.
+ * Enumerazione delle operazioni che il client puo' richiedere al server:
+ * a ciascuna costante corrisponde una funzionalita' prevista dalle
+ * specifiche di progetto. Il ruolo eventualmente richiesto per
+ * l'esecuzione e' indicato tra parentesi.
  *
  * @author Daniele Montefiore
  */
@@ -39,6 +40,8 @@ public enum Operazione {
     VISUALIZZA_MIE_RECENSIONI,
     /** Inserimento di un nuovo ristorante (gestore). */
     AGGIUNGI_RISTORANTE,
+    /** Presa in carico di un ristorante privo di gestore (gestore). */
+    RIVENDICA_RISTORANTE,
     /** Riepilogo recensioni dei propri ristoranti (gestore). */
     VISUALIZZA_RIEPILOGO,
     /** Risposta a una recensione (gestore). */

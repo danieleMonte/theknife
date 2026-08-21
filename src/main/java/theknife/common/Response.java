@@ -6,11 +6,12 @@ package theknife.common;
 import java.io.Serializable;
 
 /**
- * La risposta del server: dice se l'operazione e' andata bene, porta
- * l'eventuale messaggio di errore e i dati richiesti (per esempio la
- * lista dei ristoranti trovati). Il costruttore e' privato apposta:
- * una Response si crea solo con ok() o errore(), cosi' non possono
- * esistere risposte "a meta'".
+ * Messaggio di risposta inviato dal server al client. Comunica l'esito
+ * dell'operazione, l'eventuale messaggio di errore e i dati richiesti.
+ * <p>
+ * Il costruttore e' privato e l'istanziazione avviene esclusivamente
+ * tramite i metodi factory {@link #ok(Object)} e {@link #errore(String)},
+ * in modo da impedire la creazione di risposte in stato incoerente.
  *
  * @author Daniele Montefiore
  */
@@ -29,9 +30,9 @@ public class Response implements Serializable {
     }
 
     /**
-     * Operazione riuscita.
+     * Crea una risposta di esito positivo.
      *
-     * @param dati dati da restituire al client (anche {@code null})
+     * @param dati dati da restituire al client (eventualmente {@code null})
      * @return risposta di successo
      */
     public static Response ok(Object dati) {
@@ -39,9 +40,10 @@ public class Response implements Serializable {
     }
 
     /**
-     * Operazione fallita.
+     * Crea una risposta di esito negativo.
      *
-     * @param messaggio spiegazione dell'errore, da far vedere all'utente
+     * @param messaggio descrizione dell'errore, destinata alla
+     *                  visualizzazione all'utente
      * @return risposta di errore
      */
     public static Response errore(String messaggio) {

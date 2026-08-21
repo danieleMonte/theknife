@@ -13,11 +13,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Il main del server. All'avvio chiede da terminale host e credenziali
- * del database (come richiesto dalle specifiche), poi si mette in
- * ascolto sulla porta 4444: per ogni client che si connette prende un
- * thread dal pool e gli affida un {@link ClientHandler}, cosi' piu'
- * utenti possono lavorare in parallelo.
+ * Modulo server della piattaforma TheKnife. All'avvio richiede da
+ * terminale host e credenziali del database, come previsto dalle
+ * specifiche, quindi resta in ascolto sulla porta {@value #PORTA}.
+ * Ogni connessione accettata viene affidata a un {@link ClientHandler}
+ * eseguito su un thread del pool, garantendo l'interazione in parallelo
+ * con piu' utenti.
  *
  * @author Daniele Montefiore
  */
@@ -49,9 +50,10 @@ public final class ServerTK {
         System.out.print("Utente DB: ");
         String utente = scanner.nextLine().trim();
 
-        // Console.readPassword non fa vedere la password mentre la digiti,
-        // ma funziona solo in un terminale vero: dall'IDE (o con input
-        // rediretto) restituisce null, e allora leggo normalmente da stdin.
+        // Console.readPassword non visualizza i caratteri digitati, ma e'
+        // disponibile solo se lo standard input e' un terminale interattivo:
+        // in caso contrario (esecuzione da IDE o input rediretto) restituisce
+        // null e si ricorre alla lettura ordinaria da stdin.
         Console console = System.console();
         String password = null;
         if (console != null) {
@@ -64,7 +66,8 @@ public final class ServerTK {
             System.out.print("Password DB: ");
             password = scanner.hasNextLine() ? scanner.nextLine() : "";
         }
-        // chiude anche System.in: da qui in poi il server non legge piu' da tastiera
+        // La chiusura coinvolge anche System.in: da questo punto in poi il
+        // server non effettua ulteriori letture da tastiera.
         scanner.close();
 
         try {

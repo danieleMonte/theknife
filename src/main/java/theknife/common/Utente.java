@@ -7,10 +7,11 @@ import java.io.Serializable;
 import java.time.LocalDate;
 
 /**
- * Un utente registrato a TheKnife. Sul campo password va fatta
- * attenzione: nel database c'e' solo l'hash BCrypt, e prima di spedire
- * l'oggetto al client il campo viene svuotato del tutto — la password,
- * nemmeno cifrata, non deve mai viaggiare verso il client.
+ * Utente registrato alla piattaforma TheKnife.
+ * <p>
+ * Il campo password contiene esclusivamente l'hash BCrypt memorizzato nel
+ * database e viene azzerato prima dell'invio dell'oggetto al client: la
+ * password, in nessuna forma, transita verso il client.
  *
  * @author Daniele Montefiore
  */
@@ -22,10 +23,29 @@ public class Utente implements Serializable {
     private String nome;
     private String cognome;
     private String username;
-    private String password;      // hash BCrypt (solo lato server)
-    private LocalDate dataNascita; // facoltativa, puo' essere null
+    private String password;       // hash BCrypt, valorizzato solo lato server
+    private LocalDate dataNascita; // facoltativa: puo' essere null
     private String domicilio;
     private Ruolo ruolo;
+
+    /**
+     * Verifica il formato di un indirizzo e-mail. Il controllo, volutamente
+     * permissivo, richiede la presenza di una parte locale, del carattere
+     * {@code @}, di un dominio e di un suffisso di almeno due lettere: e'
+     * sufficiente a intercettare gli errori di digitazione senza rifiutare
+     * indirizzi validi ma inusuali.
+     * <p>
+     * Il metodo risiede in questa classe, condivisa da client e server,
+     * affinche' la regola sia definita una sola volta e applicata in modo
+     * identico dalla validazione dell'interfaccia grafica e da quella
+     * effettuata lato server.
+     *
+     * @param email indirizzo da verificare
+     * @return {@code true} se l'indirizzo ha un formato accettabile
+     */
+    public static boolean emailValida(String email) {
+        return email != null && email.matches("^[^@\\s]+@[^@\\s.]+(\\.[^@\\s.]+)*\\.[A-Za-z]{2,}$");
+    }
 
     /** Costruttore vuoto. */
     public Utente() { }
@@ -36,7 +56,7 @@ public class Utente implements Serializable {
      * @param id          identificativo dell'utente
      * @param nome        nome proprio
      * @param cognome     cognome
-     * @param username    username o e-mail (univoco)
+     * @param username    username / e-mail (univoco)
      * @param password    hash BCrypt della password
      * @param dataNascita data di nascita (puo' essere {@code null})
      * @param domicilio   luogo del domicilio

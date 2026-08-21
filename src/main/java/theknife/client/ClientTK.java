@@ -12,16 +12,19 @@ import javafx.stage.Stage;
 import java.io.IOException;
 
 /**
- * Modulo client della piattaforma TheKnife: applicazione JavaFX
- * che si connette al server e mostra l'interfaccia grafica.
+ * Applicazione JavaFX del modulo client. La classe contiene
+ * volutamente una logica minima: JavaFX invoca {@code start()} sul
+ * proprio thread grafico, dove viene caricata la schermata di login;
+ * la gestione delle successive interazioni e' demandata ai controller
+ * delle singole schermate.
  *
  * @author Daniele Montefiore
  */
 public class ClientTK extends Application {
 
     /**
-     * Inizializza la finestra principale caricando la schermata iniziale
-     * (login / registrazione / accesso come guest).
+     * Inizializza la finestra principale caricando la schermata iniziale,
+     * che consente login, registrazione o accesso come utente guest.
      *
      * @param stage finestra principale fornita da JavaFX
      * @throws IOException se il file FXML non puo' essere caricato
@@ -34,10 +37,10 @@ public class ClientTK extends Application {
         stage.show();
     }
 
-    /** Chiude la connessione col server quando l'applicazione termina. */
+    /** Chiude la connessione verso il server al termine dell'applicazione. */
     @Override
     public void stop() {
-       ClientConnection.getIstanza().chiudi();
+        ClientConnection.getIstanza().chiudi();
     }
 
     /**

@@ -16,12 +16,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO per la tabella {@code RistorantiTheKnife}. E' il piu' corposo del
- * progetto perche' qui vive tutta la ricerca per distanza: baricentro
- * della citta', formula di Haversine in SQL e filtri combinabili.
- * Media stelle e numero recensioni li calcolo direttamente nella query
- * invece di tenerli come colonne, cosi' non possono mai essere
- * disallineati rispetto alle recensioni vere.
+ * Data Access Object per la tabella {@code RistorantiTheKnife}: ricerca
+ * geografica, dettaglio, inserimento e riepilogo dei ristoranti.
+ * <p>
+ * La ricerca per distanza si basa sul baricentro (media di latitudine e
+ * longitudine) dei ristoranti gia' noti in una citta', usato come punto
+ * di riferimento per il calcolo della distanza ortodromica (formula di
+ * Haversine) direttamente in SQL, combinabile con i filtri opzionali
+ * della richiesta.
+ * <p>
+ * Media delle stelle e numero di recensioni non sono colonne della
+ * tabella ma vengono ricalcolati a ogni interrogazione tramite funzioni
+ * di aggregazione, garantendo la coerenza con i dati effettivi delle
+ * recensioni senza richiedere aggiornamenti espliciti.
  *
  * @author Daniele Montefiore
  */
@@ -31,16 +38,15 @@ public class RistoranteDAO {
     public static final double DISTANZA_MAX_PREDEFINITA = 30;
 
     /**
-     * Quanto possono distare (km) le coordinate di un nuovo ristorante
-     * dal baricentro della sua citta'. Oltre questa soglia le considero
-     * un refuso e rifiuto l'inserimento: una coordinata sbagliata sposta
-     * il baricentro e rompe la ricerca per tutta la citta' (successo
-     * davvero durante i test, con un ristorante di Legnano finito nel
-     * Caucaso per una longitudine 45 al posto di 8.9).
+     * Distanza massima (km) ammessa tra le coordinate di un nuovo
+     * ristorante e il baricentro della sua citta'. Oltre questa soglia
+     * le coordinate sono considerate errate e l'inserimento viene
+     * rifiutato: una coordinata errata sposterebbe il baricentro e
+     * comprometterebbe la ricerca per l'intera citta'.
      */
     public static final double SCARTO_MAX_KM = 60;
 
-    /** Distanza Haversine in km, scritta in SQL, dal punto nei tre '?'. */
+    /** Espressione SQL della distanza di Haversine (km) dal punto identificato dai tre parametri {@code ?}. */
     private static final String SQL_DISTANZA =
             "2 * 6371 * ASIN(SQRT("
             + " POWER(SIN(RADIANS(r.latitudine - ?) / 2), 2)"
@@ -49,27 +55,28 @@ public class RistoranteDAO {
             + " ))";
 
     /**
-     * La ricerca dei ristoranti, cuore del progetto.
+     * Ricerca dei ristoranti in base a criteri geografici e a filtri opzionali.
      * <p>
-     * La citta' e' obbligatoria e fa da punto di partenza: come
-     * riferimento uso il baricentro (media di latitudine e longitudine)
-     * dei ristoranti che gia' conosco in quella citta' — il dataset
-     * stesso fa da "gazetteer", non serve un servizio esterno di
-     * geocoding. Da li' tengo i ristoranti la cui distanza Haversine,
-     * calcolata in SQL, non supera il raggio scelto dall'utente
-     * ({@code distanzaMax} km, di default {@value #DISTANZA_MAX_PREDEFINITA}),
-     * ordinati per default dal piu' vicino (si puo' scegliere anche cucina,
-     * prezzo o valutazione, vedi {@code ordinamento}). Non c'e' un raggio minimo: il punto
-     * di partenza e' gia' la citta' indicata, quindi il minimo e' sempre 0.
-     * La stessa query serve sia la schermata dei "ristoranti vicini"
-     * sia la ricerca con i filtri.
+     * La citta' e' obbligatoria e costituisce il punto di partenza della
+     * ricerca: come riferimento geografico viene utilizzato il baricentro
+     * (media di latitudine e longitudine) dei ristoranti gia' presenti in
+     * quella citta'. Vengono restituiti i ristoranti la cui distanza dal
+     * riferimento, calcolata con la formula di Haversine, non supera il
+     * raggio massimo indicato ({@code distanzaMax}, in km; valore
+     * predefinito {@value #DISTANZA_MAX_PREDEFINITA}). I risultati sono
+     * ordinati per distanza crescente, salvo diversa indicazione tramite
+     * il parametro {@code ordinamento}.
+     * <p>
+     * Lo stesso metodo serve sia la schermata dei ristoranti vicini
+     * all'utente sia la ricerca con filtri combinati.
      * <p>
      * Parametri riconosciuti: {@code citta} (String, obbligatorio),
      * {@code distanzaMax} (Double, km),
      * {@code tipoCucina} (String), {@code prezzoMin}/{@code prezzoMax} (Double),
      * {@code delivery}/{@code prenotazione} (Boolean), {@code stelleMin} (Double),
      * {@code ordinamento} (String: {@code "cucina"}, {@code "prezzoAsc"},
-     * {@code "prezzoDesc"}, {@code "valutazione"}, o assente per la distanza).
+     * {@code "prezzoDesc"}, {@code "valutazione"}, o assente per l'ordinamento
+     * per distanza).
      *
      * @param richiesta richiesta con i criteri di ricerca
      * @return risposta con la lista dei {@link Ristorante} trovati
@@ -90,7 +97,7 @@ public class RistoranteDAO {
 
         try (Connection conn = DBConnection.getIstanza().nuovaConnessione()) {
 
-            // 1) da dove parto: baricentro dei ristoranti della citta'
+            // 1) punto di riferimento: baricentro dei ristoranti della citta'
             double[] riferimento = baricentroCitta(conn, citta);
             if (riferimento == null) {
                 return Response.errore("Nessun ristorante conosciuto vicino a \"" + citta
@@ -99,9 +106,10 @@ public class RistoranteDAO {
             double latRif = riferimento[0];
             double lonRif = riferimento[1];
 
-            // 2) costruisco la query un pezzo alla volta: ogni filtro presente
-            //    aggiunge il suo AND e il suo parametro (sempre con '?', mai
-            //    concatenando i valori: e' la difesa dalla SQL injection)
+            // 2) la query viene costruita incrementalmente: ogni filtro presente
+            //    nella richiesta aggiunge una clausola AND con il relativo
+            //    parametro '?'. I valori non vengono mai concatenati come
+            //    testo, a difesa da SQL injection.
             StringBuilder sql = new StringBuilder(
                     "SELECT r.*, COALESCE(AVG(rec.stelle), 0) AS media_stelle,"
                     + " COUNT(rec.id) AS numero_recensioni,"
@@ -140,9 +148,11 @@ public class RistoranteDAO {
                 parametri.add(prenotazione);
             }
 
-            // il filtro sulla distanza sta nell'HAVING (e la formula va ripetuta:
-            // in SQL non posso riusare l'alias distanza_km del SELECT). Solo un
-            // tetto massimo: il minimo e' sempre 0, cioe' la citta' stessa
+            // Il filtro sulla distanza e' collocato nella clausola HAVING; la
+            // formula va ripetuta perche' l'alias distanza_km, definito nel
+            // SELECT, non e' referenziabile in HAVING. E' previsto un solo
+            // limite massimo: la distanza minima e' implicitamente 0, poiche'
+            // il riferimento coincide con la citta' stessa.
             sql.append(" GROUP BY r.id HAVING ").append(SQL_DISTANZA).append(" <= ?");
             parametri.add(latRif);
             parametri.add(latRif);
@@ -154,9 +164,10 @@ public class RistoranteDAO {
                 sql.append(" AND COALESCE(AVG(rec.stelle), 0) >= ?");
                 parametri.add(stelleMin);
             }
-            // l'ordinamento non si puo' legare con '?' (un PreparedStatement puo'
-            // parametrizzare solo valori, non nomi di colonna): scelgo tra un
-            // insieme fisso di ORDER BY scritti a mano, mai dal testo del client
+            // Il criterio di ordinamento non puo' essere legato con '?', poiche'
+            // un PreparedStatement parametrizza solo valori, non identificatori
+            // di colonna: viene quindi selezionata una tra un insieme fisso di
+            // clausole ORDER BY predefinite nel codice, mai derivate dal client.
             sql.append(" ORDER BY ").append(ordinePer((String) richiesta.get("ordinamento")));
 
             try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
@@ -177,14 +188,17 @@ public class RistoranteDAO {
     }
 
     /**
-     * Traduce il criterio scelto dal client nella clausola ORDER BY.
-     * A parita' di cucina, prezzo o valutazione, il piu' vicino resta
-     * comunque primo: distanza_km e' sempre l'ultimo criterio.
+     * Traduce il criterio di ordinamento richiesto dal client nella
+     * corrispondente clausola ORDER BY. A parita' di cucina, prezzo o
+     * valutazione, la distanza costituisce sempre il criterio finale di
+     * ordinamento.
      *
      * @param ordinamento {@code "cucina"}, {@code "prezzoAsc"}, {@code "prezzoDesc"},
-     *                    {@code "valutazione"}, o altro/{@code null} per il predefinito
-     * @return frammento SQL da usare dopo ORDER BY (mai testo del client: solo
-     *         una di queste costanti scritte a mano, per evitare SQL injection)
+     *                    {@code "valutazione"}, oppure altro valore o {@code null}
+     *                    per l'ordinamento predefinito
+     * @return frammento SQL da utilizzare dopo ORDER BY; corrisponde sempre a una
+     *         delle costanti predefinite nel codice, mai a testo proveniente dal
+     *         client, a garanzia contro la SQL injection
      */
     private static String ordinePer(String ordinamento) {
         if (ordinamento == null) {
@@ -198,12 +212,12 @@ public class RistoranteDAO {
             case "prezzoDesc":
                 return "r.prezzo_medio DESC, distanza_km";
             case "valutazione":
-                // media_stelle e' COALESCE(AVG(rec.stelle), 0): chi non ha
-                // nessuna recensione vale sempre 0, quindi un DESC semplice
-                // lo mette gia' in fondo da solo, dopo tutti i voti veri
-                // (1-5) - non serve distinguere i due casi a parte. Se
-                // nessun risultato ha recensioni sono tutti a 0, e quindi
-                // l'ordine finale e' semplicemente per distanza
+                // media_stelle corrisponde a COALESCE(AVG(rec.stelle), 0): un
+                // ristorante privo di recensioni assume sempre valore 0, quindi
+                // l'ordinamento decrescente colloca automaticamente in coda i
+                // ristoranti senza recensioni, senza necessita' di un criterio
+                // distinto. Se nessun risultato possiede recensioni, tutti i
+                // valori sono 0 e l'ordinamento finale coincide con la distanza.
                 return "media_stelle DESC, distanza_km";
             default:
                 return "distanza_km";
@@ -211,9 +225,9 @@ public class RistoranteDAO {
     }
 
     /**
-     * Elenco alfabetico delle citta' presenti nel database: serve al
-     * client per il menu a tendina, cosi' l'utente sceglie una citta'
-     * che esiste davvero invece di scriverla a mano (e sbagliarla).
+     * Elenco alfabetico delle citta' distinte presenti nel database,
+     * utilizzato dal client per popolare il menu a tendina della ricerca
+     * ed evitare l'inserimento manuale di nomi di citta' non validi.
      *
      * @return risposta con la lista dei nomi delle citta'
      * @throws SQLException in caso di errore di accesso al database
@@ -232,8 +246,9 @@ public class RistoranteDAO {
     }
 
     /**
-     * Restituisce il dettaglio di un singolo ristorante, con media stelle
-     * e numero di recensioni aggiornati.
+     * Restituisce il dettaglio di un singolo ristorante, con la media
+     * delle stelle e il numero di recensioni aggiornati alla situazione
+     * corrente.
      *
      * @param idRistorante identificativo del ristorante
      * @return risposta con il {@link Ristorante}, o errore se non esiste
@@ -259,15 +274,16 @@ public class RistoranteDAO {
     }
 
     /**
-     * Inserisce un nuovo ristorante del gestore loggato.
+     * Inserisce un nuovo ristorante associato al gestore autenticato.
      * <p>
-     * Sulle coordinate ho messo tre difese, dopo aver visto coi miei
-     * occhi cosa combina una longitudine sbagliata: (1) si possono
-     * lasciare vuote, e se la citta' e' gia' nel database uso il suo
-     * baricentro; (2) se indicate, devono stare nei range geografici
-     * veri; (3) se la citta' e' conosciuta, non possono distare piu' di
-     * {@value #SCARTO_MAX_KM} km dagli altri ristoranti — a quel punto
-     * sono quasi sicuramente un refuso.
+     * La validazione delle coordinate geografiche prevede tre controlli:
+     * (1) latitudine e longitudine sono facoltative; se omesse e la
+     * citta' e' gia' presente nel database, viene utilizzato il relativo
+     * baricentro; (2) se indicate, devono rientrare nei range geografici
+     * validi; (3) se la citta' e' gia' nota, non possono distare piu' di
+     * {@value #SCARTO_MAX_KM} km dagli altri ristoranti della stessa
+     * citta', poiche' un valore fuori soglia e' con elevata probabilita'
+     * un errore di inserimento.
      *
      * @param idGestore identificativo del gestore (dalla sessione server)
      * @param richiesta richiesta con i dati del ristorante: {@code nome},
@@ -295,9 +311,10 @@ public class RistoranteDAO {
             double[] riferimento = baricentroCitta(conn, citta);
 
             if (latitudine == null || longitudine == null) {
-                // coordinate lasciate vuote: se conosco la citta' uso il suo
-                // baricentro, cosi' il gestore non deve cercarle su una mappa
-                // (e soprattutto non puo' sbagliarle)
+                // Coordinate non fornite: se la citta' e' gia' nota, si utilizza
+                // il relativo baricentro, evitando che il gestore debba
+                // reperire manualmente le coordinate (con il conseguente
+                // rischio di errore).
                 if (riferimento == null) {
                     return Response.errore("\"" + citta + "\" non e' ancora su TheKnife: "
                             + "per una nuova citta' indica latitudine e longitudine");
@@ -310,9 +327,10 @@ public class RistoranteDAO {
                     return Response.errore("Coordinate non valide: latitudine tra -90 e 90, "
                             + "longitudine tra -180 e 180 (es. Legnano: 45.60, 8.92)");
                 }
-                // controllo di coerenza: se le coordinate cascano lontanissimo
-                // dagli altri ristoranti della citta', quasi sicuramente sono
-                // un refuso, e un refuso qui rompe la ricerca di tutta la citta'
+                // Controllo di coerenza: coordinate significativamente distanti
+                // dagli altri ristoranti della citta' sono con elevata
+                // probabilita' errate, e un valore errato comprometterebbe la
+                // ricerca per l'intera citta'.
                 if (riferimento != null) {
                     double scarto = distanzaKm(latitudine, longitudine,
                             riferimento[0], riferimento[1]);
@@ -350,9 +368,42 @@ public class RistoranteDAO {
     }
 
     /**
-     * Il "centro" di una citta' secondo il database: la media di
-     * latitudine e longitudine dei suoi ristoranti. Lo usano sia la
-     * ricerca sia i controlli sull'inserimento.
+     * Assegna al gestore indicato un ristorante attualmente privo di
+     * gestore, tipicamente uno di quelli importati dal dataset iniziale.
+     * <p>
+     * La condizione {@code id_gestore IS NULL} nella clausola WHERE rende
+     * l'operazione atomica: l'aggiornamento ha effetto solo se il
+     * ristorante non e' gia' stato assegnato. In caso di richieste
+     * concorrenti da parte di piu' gestori, il DBMS serializza le
+     * istruzioni e una sola di esse modifica la riga, mentre le altre
+     * riscontrano zero righe aggiornate e vengono respinte.
+     *
+     * @param idGestore    identificativo del gestore (dalla sessione server)
+     * @param idRistorante identificativo del ristorante da prendere in carico
+     * @return risposta di successo, oppure errore se il ristorante non
+     *         esiste o risulta gia' assegnato a un gestore
+     * @throws SQLException in caso di errore di accesso al database
+     */
+    public Response rivendicaRistorante(int idGestore, int idRistorante) throws SQLException {
+        String sql = "UPDATE RistorantiTheKnife SET id_gestore = ? "
+                + "WHERE id = ? AND id_gestore IS NULL";
+        try (Connection conn = DBConnection.getIstanza().nuovaConnessione();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGestore);
+            ps.setInt(2, idRistorante);
+            if (ps.executeUpdate() == 0) {
+                return Response.errore("Il ristorante non esiste oppure e' gia' "
+                        + "gestito da un altro utente");
+            }
+            return Response.ok(null);
+        }
+    }
+
+    /**
+     * Calcola il baricentro geografico di una citta', inteso come la
+     * media di latitudine e longitudine dei ristoranti in essa presenti.
+     * Il valore e' utilizzato sia dalla ricerca per distanza sia dai
+     * controlli di validazione in fase di inserimento.
      *
      * @param conn  connessione gia' aperta da riutilizzare
      * @param citta nome della citta'
@@ -369,8 +420,9 @@ public class RistoranteDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 double lat = rs.getDouble("lat");
-                // AVG su zero righe da' NULL, ma getDouble lo trasforma in 0.0:
-                // per accorgermene devo chiedere a wasNull()
+                // AVG su un insieme vuoto restituisce NULL, ma getDouble lo
+                // converte silenziosamente in 0.0: la distinzione e' possibile
+                // solo interrogando wasNull() subito dopo la lettura.
                 if (rs.wasNull()) {
                     return null;
                 }
@@ -380,9 +432,11 @@ public class RistoranteDAO {
     }
 
     /**
-     * Distanza in km tra due punti sulla Terra (formula di Haversine).
-     * E' la copia in Java della formula che la ricerca usa in SQL:
-     * devono restare identiche, altrimenti i controlli non tornano.
+     * Calcola la distanza in km tra due punti geografici identificati dalle loro coordinate,
+     * mediante la formula di Haversine. Costituisce l'equivalente in Java
+     * della medesima formula utilizzata in SQL dalla ricerca: le due
+     * implementazioni devono rimanere identiche affinche' i controlli di
+     * coerenza sulle coordinate siano validi.
      *
      * @param lat1 latitudine del primo punto
      * @param lon1 longitudine del primo punto
@@ -400,8 +454,9 @@ public class RistoranteDAO {
     }
 
     /**
-     * Riepilogo per il gestore: i suoi ristoranti con media stelle e
-     * numero di recensioni di ciascuno.
+     * Restituisce, per il gestore autenticato, l'elenco dei propri
+     * ristoranti con la relativa media delle stelle e il numero di
+     * recensioni ricevute.
      *
      * @param idGestore identificativo del gestore (dalla sessione server)
      * @return risposta con la lista dei {@link Ristorante} del gestore
@@ -429,10 +484,12 @@ public class RistoranteDAO {
     }
 
     /**
-     * Trasforma la riga corrente del ResultSet in un Ristorante; la riga
-     * deve avere anche {@code media_stelle} e {@code numero_recensioni}.
-     * Non e' private perche' la riusa anche {@link PreferitoDAO}, che
-     * produce righe nello stesso formato.
+     * Costruisce un oggetto {@link Ristorante} a partire dalla riga
+     * corrente del ResultSet, che deve includere anche le colonne
+     * calcolate {@code media_stelle} e {@code numero_recensioni}.
+     * Visibilita' di package anziche' privata poiche' il metodo e'
+     * riutilizzato anche da {@link PreferitoDAO}, che produce risultati
+     * nello stesso formato.
      *
      * @param rs ResultSet posizionato su una riga del risultato
      * @return ristorante coi dati della riga

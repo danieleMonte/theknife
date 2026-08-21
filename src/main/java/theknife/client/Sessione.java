@@ -3,9 +3,17 @@
  */
 package theknife.client;
 
+import theknife.common.Utente;
+
 /**
- * Stato della sessione lato client (pattern Singleton): l'utente loggato,
- * oppure il luogo indicato in caso di accesso come guest.
+ * Mantiene lo stato della sessione lato client: l'utente autenticato
+ * oppure il luogo indicato in caso di accesso come guest. E' implementata
+ * come Singleton affinche' tutte le schermate condividano la medesima
+ * sessione.
+ * <p>
+ * Le informazioni qui memorizzate hanno finalita' esclusivamente di
+ * presentazione: la verifica effettiva dei permessi e' comunque
+ * ripetuta dal server a ogni richiesta.
  *
  * @author Daniele Montefiore
  */
@@ -13,7 +21,8 @@ public final class Sessione {
 
     private static final Sessione ISTANZA = new Sessione();
 
-    private String luogoGuest; // luogo indicato dal guest, null se loggato
+    private Utente utente;     // null in caso di accesso come guest
+    private String luogoGuest; // luogo indicato dal guest; null se autenticato
 
     private Sessione() { }
 
@@ -31,8 +40,10 @@ public final class Sessione {
      *
      * @param utente utente autenticato dal server
      */
-    /* Da creare la classe Utente 
-    */
+    public void accedi(Utente utente) {
+        this.utente = utente;
+        this.luogoGuest = null;
+    }
 
     /**
      * Inizia una sessione guest.
@@ -40,29 +51,30 @@ public final class Sessione {
      * @param luogo luogo indicato dal guest
      */
     public void accediComeGuest(String luogo) {
-        // this.utente = null; // manca la classe utente
+        this.utente = null;
         this.luogoGuest = luogo;
     }
 
     /** Termina la sessione corrente. */
     public void esci() {
-        // this.utente = null; // manca la classe utente
+        this.utente = null;
         this.luogoGuest = null;
     }
 
-   
+    /** @return utente autenticato, {@code null} in caso di accesso come guest */
+    public Utente getUtente() { return utente; }
 
-    /** @return {@code true} se c'e' un utente loggato */
-    public boolean isLoggato() { return false; } // [PROVVISORIO: "utente != null"]
+    /** @return {@code true} se e' presente un utente autenticato */
+    public boolean isLoggato() { return utente != null; }
 
     /**
-     * Luogo di riferimento per l'elenco dei ristoranti "vicini":
-     * il domicilio dell'utente loggato, o il luogo indicato dal guest.
+     * Restituisce il luogo di riferimento per la ricerca dei ristoranti
+     * vicini: il domicilio dell'utente autenticato oppure, in assenza di
+     * autenticazione, il luogo indicato dal guest.
      *
      * @return luogo di riferimento della sessione
      */
     public String getLuogo() {
-        // [PROVVISORIO: "utente != null ? utente.getDomicilio() : luogoGuest"]
-        return luogoGuest;
+        return utente != null ? utente.getDomicilio() : luogoGuest;
     }
 }

@@ -8,10 +8,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * E' il messaggio che il client manda al server: dice quale operazione
- * vuole fare e si porta dietro i parametri che servono (i filtri di
- * ricerca, i dati di una recensione, ecc.). Ho usato una mappa generica
- * cosi' non devo creare una classe diversa per ogni operazione.
+ * Messaggio di richiesta inviato dal client al server. Specifica
+ * l'operazione da eseguire e trasporta i parametri necessari alla sua
+ * esecuzione (criteri di ricerca, dati di una recensione, ecc.).
  *
  * @author Daniele Montefiore
  */
@@ -35,12 +34,15 @@ public class Request implements Serializable {
     public Operazione getOperazione() { return operazione; }
 
     /**
-     * Aggiunge un parametro e restituisce la richiesta stessa, cosi'
-     * posso concatenare piu' .con() uno dietro l'altro quando la creo.
+     * Registra la coppia (chiave, valore) tra i parametri della richiesta.
+     * Restituisce l'istanza corrente per consentire la concatenazione di
+     * piu' chiamate in fase di costruzione, ad esempio
+     * {@code new Request(LOGIN).con("username", u).con("password", p)}.
      *
-     * @param chiave nome del parametro
+     * @param chiave nome del parametro, con cui il server lo rilegge tramite
+     *               {@link #get(String)}
      * @param valore valore del parametro (deve essere serializzabile)
-     * @return questa stessa richiesta
+     * @return questa stessa richiesta, per la concatenazione
      */
     public Request con(String chiave, Object valore) {
         parametri.put(chiave, valore);
@@ -48,10 +50,11 @@ public class Request implements Serializable {
     }
 
     /**
-     * Legge un parametro; chi chiama sa gia' di che tipo e' e fa il cast.
+     * Restituisce il valore associato a un parametro. Il tipo effettivo
+     * e' noto al chiamante, che effettua il cast appropriato.
      *
      * @param chiave nome del parametro
-     * @return valore del parametro, o {@code null} se non c'e'
+     * @return valore del parametro, o {@code null} se non presente
      */
     public Object get(String chiave) {
         return parametri.get(chiave);

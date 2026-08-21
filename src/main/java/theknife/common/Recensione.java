@@ -6,9 +6,10 @@ package theknife.common;
 import java.io.Serializable;
 
 /**
- * Una recensione: stelle da 1 a 5, testo e l'eventuale risposta del
- * gestore (le specifiche ne ammettono al massimo una per recensione,
- * quindi basta un campo e non serve una tabella a parte).
+ * Recensione di un ristorante: numero di stelle da 1 a 5, testo ed
+ * eventuale risposta del gestore. Le specifiche ammettono al massimo una
+ * risposta per recensione, motivo per cui e' sufficiente un singolo
+ * campo e non una tabella dedicata.
  *
  * @author Daniele Montefiore
  */
@@ -23,8 +24,8 @@ public class Recensione implements Serializable {
     private String testo;
     private String risposta; // null se il gestore non ha ancora risposto
 
-    // nome del ristorante recensito: lo riempie il server con una JOIN
-    // per la schermata "le mie recensioni", altrimenti resta null
+    // Nome del ristorante recensito: valorizzato dal server tramite JOIN per la
+    // sola schermata "Le mie recensioni"; negli altri casi resta null.
     private String nomeRistorante;
 
     /** Costruttore vuoto. */

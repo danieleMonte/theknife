@@ -16,13 +16,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO per la tabella {@code Recensioni}: tutto il ciclo di vita di una
- * recensione (inserimento, modifica, cancellazione, elenchi) piu' la
- * risposta del gestore.
+ * Data Access Object per la tabella {@code Recensioni}: gestisce l'intero
+ * ciclo di vita di una recensione (inserimento, modifica, cancellazione,
+ * consultazione) e la risposta del gestore.
  * <p>
- * Le specifiche vogliono le recensioni anonime, quindi l'id dell'autore
- * non viene proprio copiato negli oggetti spediti al client: quello che
- * non parte dal server non puo' finire in giro.
+ * Le specifiche richiedono che le recensioni siano visualizzate in forma
+ * anonima: l'identificativo dell'autore non viene pertanto copiato negli
+ * oggetti trasmessi al client, in modo che il dato non lasci mai il
+ * server.
  *
  * @author Daniele Montefiore
  */
@@ -80,10 +81,10 @@ public class RecensioneDAO {
     }
 
     /**
-     * Inserisce una recensione. La regola "una sola recensione per
-     * utente per ristorante" non la controllo io: la fa rispettare il
-     * vincolo UNIQUE (id_utente, id_ristorante) della tabella, che
-     * tiene anche nel caso di due inserimenti in contemporanea.
+     * Inserisce una nuova recensione. Il vincolo di una sola recensione
+     * per utente e per ristorante non e' verificato a livello applicativo
+     * ma garantito dal vincolo UNIQUE (id_utente, id_ristorante) definito
+     * sulla tabella, valido anche in presenza di inserimenti concorrenti.
      *
      * @param idUtente  identificativo dell'autore (dalla sessione server)
      * @param richiesta richiesta con {@code idRistorante}, {@code stelle} e {@code testo}
@@ -117,9 +118,11 @@ public class RecensioneDAO {
     }
 
     /**
-     * Modifica una recensione. L'{@code id_utente = ?} nel WHERE fa due
-     * cose insieme: trova la recensione e verifica che sia davvero di
-     * chi la sta modificando — se non e' sua, l'UPDATE tocca zero righe.
+     * Modifica una recensione esistente. La condizione
+     * {@code id_utente = ?} nella clausola WHERE assolve contestualmente
+     * a due funzioni: individua la recensione e ne verifica la
+     * proprieta'. Se la recensione non appartiene all'utente richiedente,
+     * l'UPDATE non modifica alcuna riga.
      *
      * @param idUtente  identificativo dell'autore (dalla sessione server)
      * @param richiesta richiesta con {@code idRecensione}, {@code stelle} e {@code testo}
@@ -150,8 +153,9 @@ public class RecensioneDAO {
     }
 
     /**
-     * Elimina una recensione; vale lo stesso trucco della modifica,
-     * l'{@code id_utente} nel WHERE protegge le recensioni degli altri.
+     * Elimina una recensione. Analogamente alla modifica, la presenza di
+     * {@code id_utente} nella clausola WHERE impedisce l'eliminazione di
+     * recensioni altrui.
      *
      * @param idUtente     identificativo dell'autore (dalla sessione server)
      * @param idRecensione identificativo della recensione da eliminare
@@ -172,11 +176,13 @@ public class RecensioneDAO {
     }
 
     /**
-     * La risposta del gestore a una recensione. Il {@code risposta IS
-     * NULL} nel WHERE e' il pezzo importante: l'UPDATE riesce solo se la
-     * risposta non c'e' ancora, e siccome un UPDATE e' atomico, anche se
-     * due tentativi arrivano nello stesso istante ne passa uno solo —
-     * "al massimo una risposta per recensione" senza bisogno di lock.
+     * Registra la risposta del gestore a una recensione relativa a un
+     * proprio ristorante. La condizione {@code risposta IS NULL} nella
+     * clausola WHERE consente l'aggiornamento solo in assenza di una
+     * risposta precedente; poiche' l'istruzione UPDATE e' atomica, in
+     * caso di tentativi concorrenti uno solo va a buon fine. Il vincolo
+     * di una sola risposta per recensione e' pertanto garantito senza
+     * ricorrere a meccanismi di lock applicativi.
      *
      * @param idGestore identificativo del gestore (dalla sessione server)
      * @param richiesta richiesta con {@code idRecensione} e {@code risposta}
@@ -206,12 +212,16 @@ public class RecensioneDAO {
     }
 
     /**
-     * Trasforma la riga corrente del ResultSet in una Recensione.
-     * L'id dell'autore, di proposito, non lo copio: e' cosi' che le
-     * recensioni arrivano anonime al client.
+     * Costruisce un oggetto {@link Recensione} a partire dalla riga
+     * corrente del ResultSet, centralizzando la conversione anziche'
+     * replicarla in ciascun metodo di lettura.
+     * <p>
+     * L'identificativo dell'autore non viene deliberatamente copiato: e'
+     * questo il meccanismo con cui le recensioni raggiungono il client in
+     * forma anonima, come richiesto dalle specifiche.
      *
      * @param rs ResultSet posizionato su una riga della tabella Recensioni
-     * @return recensione coi dati della riga
+     * @return recensione popolata con i dati della riga
      * @throws SQLException in caso di errore di lettura
      */
     private Recensione daResultSet(ResultSet rs) throws SQLException {

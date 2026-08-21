@@ -5,14 +5,18 @@ package theknife.client;
 
 import javafx.collections.FXCollections;
 import javafx.scene.control.ComboBox;
+import theknife.common.Operazione;
+import theknife.common.Request;
+import theknife.common.Response;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Autocompletamento delle citta' sui menu a tendina del client:
- * l'elenco delle citta' viene richiesto al server una sola volta e
- * riutilizzato da tutte le schermate; digitando nel campo l'elenco
- * si restringe alle citta' che contengono il testo inserito.
+ * Implementa l'autocompletamento delle citta' nei menu a tendina del
+ * client. L'elenco completo e' richiesto al server una sola volta e
+ * mantenuto in cache per tutte le schermate; durante la digitazione le
+ * voci proposte sono filtrate in base al testo inserito.
  *
  * @author Daniele Montefiore
  */
@@ -27,25 +31,30 @@ public final class AutoCompletamento {
     private AutoCompletamento() { }
 
     /**
-     * Elenco delle citta' del database, richiesto al server la prima volta.
-     * Se il server non e' raggiungibile restituisce una lista vuota:
-     * il menu a tendina si comporta allora come un normale campo di testo.
+     * Restituisce l'elenco delle citta' presenti nel database,
+     * richiedendolo al server alla prima invocazione. In caso di server
+     * non raggiungibile viene restituita una lista vuota anziche' un
+     * errore: il campo resta utilizzabile, pur senza suggerimenti.
      *
      * @return elenco (eventualmente vuoto) dei nomi delle citta'
      */
+    @SuppressWarnings("unchecked")
     public static synchronized List<String> elencoCitta() {
         if (citta == null) {
-            /* richiesta al server per ottenere l'elenco delle citta'
-            */
-            citta = new ArrayList<>(); // [PROVVISORIO: senza server nessun suggerimento]
+            Response risposta = ClientConnection.getIstanza().invia(new Request(Operazione.ELENCO_CITTA));
+            if (risposta.isSuccesso()) {
+                citta = (List<String>) risposta.getDati();
+            } else {
+                citta = new ArrayList<>();
+            }
         }
         return citta;
     }
 
     /**
-     * Rende il ComboBox un campo citta' con autocompletamento:
-     * editabile, popolato con le citta' del database e filtrato
-     * man mano che l'utente digita.
+     * Configura il ComboBox come campo citta' con autocompletamento:
+     * lo rende editabile, lo popola con le citta' presenti nel database e
+     * ne filtra le voci durante la digitazione.
      *
      * @param combo menu a tendina da configurare
      */
@@ -54,17 +63,20 @@ public final class AutoCompletamento {
         combo.setEditable(true);
         combo.setItems(FXCollections.observableArrayList(filtra(tutte, "")));
 
-        // Flag per distinguere le modifiche fatte da questo listener da quelle
-        // dell'utente: senza, il ripristino del testo rilancerebbe il listener.
-        // (array di un elemento perche' una variabile locale usata in una
-        // lambda deve essere effettivamente final)
+        // Flag che distingue le modifiche al testo effettuate dall'utente da
+        // quelle operate dal listener stesso: in sua assenza il ripristino del
+        // testo eseguito piu' avanti provocherebbe una riattivazione ricorsiva
+        // del listener. E' dichiarato come array di un elemento poiche' una
+        // variabile locale utilizzata all'interno di una lambda deve essere
+        // effettivamente final, mentre il contenuto dell'array resta modificabile.
         final boolean[] aggiornamentoInterno = {false};
 
         combo.getEditor().textProperty().addListener((oss, vecchio, testo) -> {
             if (aggiornamentoInterno[0] || testo == null) {
                 return;
             }
-            // testo appena impostato scegliendo dall'elenco: non rifiltrare
+            // Se il testo coincide con la voce appena selezionata dall'elenco,
+            // non e' necessario applicare nuovamente il filtro.
             String selezionata = combo.getSelectionModel().getSelectedItem();
             if (testo.equals(selezionata)) {
                 return;
@@ -72,12 +84,13 @@ public final class AutoCompletamento {
             List<String> filtrate = filtra(tutte, testo.trim().toLowerCase());
 
             aggiornamentoInterno[0] = true;
-            // Azzera la selezione PRIMA di sostituire gli elementi: se restasse
-            // attiva, il cambio di elementi riscriverebbe nell'editor il testo
-            // della vecchia selezione, impedendo di modificare il campo.
+            // La selezione va azzerata prima della sostituzione degli elementi:
+            // se una voce restasse selezionata, il ComboBox riscriverebbe
+            // nell'editor il testo della selezione precedente, rendendo il campo
+            // apparentemente non modificabile.
             combo.getSelectionModel().clearSelection();
             combo.setItems(FXCollections.observableArrayList(filtrate));
-            // Ripristina cio' che l'utente aveva digitato e il cursore in fondo
+            // Ripristino del testo digitato dall'utente, con cursore in coda.
             combo.getEditor().setText(testo);
             combo.getEditor().positionCaret(testo.length());
             aggiornamentoInterno[0] = false;
@@ -91,9 +104,11 @@ public final class AutoCompletamento {
     }
 
     /**
-     * Restituisce le citta' che contengono il testo cercato (ignorando
-     * maiuscole/minuscole), al massimo {@value #MAX_SUGGERIMENTI}.
-     * Con filtro vuoto restituisce le prime citta' dell'elenco.
+     * Restituisce le citta' che contengono il testo cercato, senza
+     * distinzione tra maiuscole e minuscole, in numero non superiore a
+     * {@value #MAX_SUGGERIMENTI}: data la dimensione del dataset, un
+     * elenco non limitato risulterebbe inutilizzabile. Con filtro vuoto
+     * vengono restituite le prime voci dell'elenco.
      *
      * @param tutte  elenco completo delle citta'
      * @param filtro testo cercato, gia' in minuscolo
@@ -113,7 +128,10 @@ public final class AutoCompletamento {
     }
 
     /**
-     * Testo attualmente presente nel campo (digitato o scelto dall'elenco).
+     * Restituisce il testo attualmente presente nel campo, sia esso
+     * digitato dall'utente o selezionato dall'elenco. I controller
+     * leggono il valore tramite questo metodo e non dalla proprieta'
+     * {@code value} del ComboBox.
      *
      * @param combo menu a tendina configurato con {@link #applicaCitta}
      * @return testo del campo, senza spazi iniziali e finali

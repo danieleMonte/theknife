@@ -18,20 +18,24 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 
 /**
- * DAO per la tabella {@code Utenti}: qui stanno le query di
- * registrazione e login. Tutto quello che riguarda le password
- * (hash BCrypt, confronto, mai inviarle al client) passa da qui.
+ * Data Access Object per la tabella {@code Utenti}: implementa le
+ * operazioni di registrazione e autenticazione. La classe centralizza
+ * inoltre l'intera gestione delle password (calcolo dell'hash BCrypt,
+ * verifica delle credenziali ed esclusione dalle risposte inviate al
+ * client).
  *
  * @author Daniele Montefiore
  */
 public class UtenteDAO {
 
     /**
-     * Controlla le credenziali: prendo l'hash salvato nel database e
-     * lascio a BCrypt.checkpw il confronto con la password ricevuta
-     * (la password in chiaro non viene mai salvata da nessuna parte).
+     * Verifica le credenziali fornite confrontando la password ricevuta
+     * con l'hash memorizzato nel database mediante
+     * {@code BCrypt.checkpw}. La password in chiaro non viene in alcun
+     * caso memorizzata.
      *
-     * @param username username o e-mail
+     * @param username indirizzo e-mail dell'utente, che ne costituisce
+     *                 l'identificativo di accesso
      * @param password password in chiaro fornita dal client
      * @return risposta con l'oggetto {@link Utente} (senza hash) se
      *         l'autenticazione riesce, errore altrimenti
@@ -45,35 +49,42 @@ public class UtenteDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next() && BCrypt.checkpw(password, rs.getString("password"))) {
                     Utente utente = daResultSet(rs);
-                    utente.setPassword(null); // nemmeno l'hash deve arrivare al client
+                    utente.setPassword(null); // neppure l'hash viene trasmesso al client
                     return Response.ok(utente);
                 }
-                return Response.errore("Username o password errati");
+                return Response.errore("E-mail o password errati");
             }
         }
     }
 
     /**
-     * Inserisce un nuovo utente; la password viene passata a BCrypt
-     * prima dell'INSERT. Il caso "username gia' preso" non lo controllo
-     * io con una SELECT: lascio che sia il vincolo UNIQUE del database
-     * a bloccarlo, cosi' funziona anche con due registrazioni in
-     * contemporanea.
+     * Registra un nuovo utente, cifrando la password con BCrypt prima
+     * dell'inserimento. L'identificativo di accesso e' l'indirizzo e-mail,
+     * di cui viene verificato il formato; l'unicita' non e' invece
+     * controllata con una SELECT preliminare ma delegata al vincolo UNIQUE
+     * definito nello schema: la soluzione resta corretta anche in presenza
+     * di registrazioni concorrenti, non presentando la finestra temporale
+     * tipica del controllo seguito da inserimento.
      *
      * @param richiesta richiesta contenente i dati dell'utente
      *                  (nome, cognome, username, password, dataNascita,
      *                  domicilio, ruolo)
-     * @return risposta di successo, o errore se lo username e' gia' in uso
+     * @return risposta di successo, o errore se l'indirizzo non e' valido
+     *         o risulta gia' registrato
      * @throws SQLException in caso di errore di accesso al database
      */
     public Response registrazione(Request richiesta) throws SQLException {
+        String email = (String) richiesta.get("username");
+        if (!Utente.emailValida(email)) {
+            return Response.errore("Indirizzo e-mail non valido (es. nome@dominio.it)");
+        }
         String sql = "INSERT INTO Utenti (nome, cognome, username, password, data_nascita, domicilio, ruolo) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getIstanza().nuovaConnessione();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, (String) richiesta.get("nome"));
             ps.setString(2, (String) richiesta.get("cognome"));
-            ps.setString(3, (String) richiesta.get("username"));
+            ps.setString(3, email);
             ps.setString(4, BCrypt.hashpw((String) richiesta.get("password"), BCrypt.gensalt()));
             LocalDate dataNascita = (LocalDate) richiesta.get("dataNascita");
             ps.setDate(5, dataNascita != null ? Date.valueOf(dataNascita) : null);
@@ -83,17 +94,18 @@ public class UtenteDAO {
             return Response.ok(null);
         } catch (SQLException e) {
             if ("23505".equals(e.getSQLState())) { // 23505 = violazione di UNIQUE
-                return Response.errore("Username gia' in uso");
+                return Response.errore("Indirizzo e-mail gia' registrato");
             }
             throw e;
         }
     }
 
     /**
-     * Trasforma la riga corrente del ResultSet in un oggetto Utente.
+     * Costruisce un oggetto {@link Utente} a partire dalla riga corrente
+     * del ResultSet.
      *
      * @param rs ResultSet posizionato su una riga della tabella Utenti
-     * @return utente coi dati della riga
+     * @return utente popolato con i dati della riga
      * @throws SQLException in caso di errore di lettura
      */
     private Utente daResultSet(ResultSet rs) throws SQLException {
