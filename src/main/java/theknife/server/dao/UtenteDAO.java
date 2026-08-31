@@ -78,6 +78,10 @@ public class UtenteDAO {
         if (!Utente.emailValida(email)) {
             return Response.errore("Indirizzo e-mail non valido (es. nome@dominio.it)");
         }
+        if (!Utente.passwordValida((String) richiesta.get("password"))) {
+            return Response.errore("La password deve contenere almeno "
+                    + Utente.LUNGHEZZA_MIN_PASSWORD + " caratteri, con almeno una lettera e una cifra");
+        }
         String sql = "INSERT INTO Utenti (nome, cognome, username, password, data_nascita, domicilio, ruolo) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DBConnection.getIstanza().nuovaConnessione();

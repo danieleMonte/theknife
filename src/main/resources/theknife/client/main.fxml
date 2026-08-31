@@ -39,8 +39,7 @@
                     <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
                     <HBox spacing="8" alignment="CENTER_LEFT">
                         <ComboBox fx:id="campoCitta" promptText="Citta' *" prefWidth="180"/>
-                        <TextField fx:id="campoDistanzaMin" promptText="Dist. min km (0)" prefWidth="110"/>
-                        <TextField fx:id="campoDistanzaMax" promptText="Dist. max km (30)" prefWidth="115"/>
+                        <TextField fx:id="campoDistanzaMax" promptText="Raggio max km (30)" prefWidth="130"/>
                         <TextField fx:id="campoCucina" promptText="Tipo di cucina" prefWidth="130"/>
                         <TextField fx:id="campoPrezzoMin" promptText="Prezzo min €" prefWidth="100"/>
                         <TextField fx:id="campoPrezzoMax" promptText="Prezzo max €" prefWidth="100"/>
@@ -50,6 +49,8 @@
                         <CheckBox fx:id="filtroPrenotazione" text="Solo con prenotazione online"/>
                         <Label text="Stelle minime:"/>
                         <ChoiceBox fx:id="sceltaStelleMin" prefWidth="110"/>
+                        <Label text="Ordina per:"/>
+                        <ChoiceBox fx:id="sceltaOrdinamento" prefWidth="210"/>
                         <Region HBox.hgrow="ALWAYS"/>
                         <Button text="Cerca" onAction="#onCerca" defaultButton="true"/>
                     </HBox>

@@ -19,6 +19,9 @@ public class Utente implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Lunghezza minima della password, come indicato nel manuale utente. */
+    public static final int LUNGHEZZA_MIN_PASSWORD = 8;
+
     private int id;
     private String nome;
     private String cognome;
@@ -45,6 +48,38 @@ public class Utente implements Serializable {
      */
     public static boolean emailValida(String email) {
         return email != null && email.matches("^[^@\\s]+@[^@\\s.]+(\\.[^@\\s.]+)*\\.[A-Za-z]{2,}$");
+    }
+
+    /**
+     * Verifica che la password rispetti la complessita' minima prevista dal
+     * manuale utente: almeno {@value #LUNGHEZZA_MIN_PASSWORD} caratteri, di
+     * cui almeno una lettera e almeno una cifra. Il requisito scoraggia le
+     * password banali senza imporre all'utente combinazioni difficili da
+     * ricordare.
+     * <p>
+     * Come {@link #emailValida}, il metodo risiede in questa classe condivisa
+     * affinche' la regola sia definita una sola volta e applicata in modo
+     * identico dalla validazione dell'interfaccia grafica e da quella
+     * effettuata lato server.
+     *
+     * @param password password in chiaro da verificare
+     * @return {@code true} se la password soddisfa i requisiti minimi
+     */
+    public static boolean passwordValida(String password) {
+        if (password == null || password.length() < LUNGHEZZA_MIN_PASSWORD) {
+            return false;
+        }
+        boolean lettera = false;
+        boolean cifra = false;
+        for (int i = 0; i < password.length(); i++) {
+            char c = password.charAt(i);
+            if (Character.isLetter(c)) {
+                lettera = true;
+            } else if (Character.isDigit(c)) {
+                cifra = true;
+            }
+        }
+        return lettera && cifra;
     }
 
     /** Costruttore vuoto. */

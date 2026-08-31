@@ -23,8 +23,8 @@
 
     <TextField fx:id="campoNome" promptText="Nome *"/>
     <TextField fx:id="campoCognome" promptText="Cognome *"/>
-    <TextField fx:id="campoUsername" promptText="Username / E-mail *"/>
-    <PasswordField fx:id="campoPassword" promptText="Password *"/>
+    <TextField fx:id="campoUsername" promptText="E-mail *"/>
+    <PasswordField fx:id="campoPassword" promptText="Password (min. 8 caratteri, lettere e cifre) *"/>
     <PasswordField fx:id="campoConferma" promptText="Conferma password *"/>
     <DatePicker fx:id="campoDataNascita" promptText="Data di nascita (facoltativa)" maxWidth="Infinity"/>
     <ComboBox fx:id="campoDomicilio" promptText="Luogo del domicilio (cerca una citta') *" maxWidth="Infinity"/>

@@ -68,7 +68,34 @@ public final class ClientConnection {
             out.reset();
             return (Response) in.readObject();
         } catch (IOException | ClassNotFoundException e) {
+            // La connessione va scartata: dopo un errore di comunicazione il
+            // socket resta aperto ma inutilizzabile e, non risultando chiuso,
+            // non verrebbe mai sostituito, impedendo ogni successivo tentativo
+            // anche a server nuovamente disponibile. Azzerandolo qui, la
+            // richiesta seguente ne apre uno nuovo e la connessione si ristabilisce.
+            scarta();
             return Response.errore("Impossibile comunicare col server: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Chiude e azzera il socket corrente, in modo che la richiesta successiva
+     * ne apra uno nuovo. I riferimenti agli stream vengono rimossi insieme al
+     * socket: se {@code close()} fallisse, un socket non ancora chiuso
+     * verrebbe altrimenti riutilizzato con stream ormai inservibili.
+     */
+    private void scarta() {
+        try {
+            if (socket != null) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            // La connessione viene comunque abbandonata: l'esito della
+            // chiusura non modifica il comportamento successivo.
+        } finally {
+            socket = null;
+            out = null;
+            in = null;
         }
     }
 
@@ -80,13 +107,6 @@ public final class ClientConnection {
 
     /** Chiude la connessione verso il server, se aperta. */
     public synchronized void chiudi() {
-        try {
-            if (socket != null) {
-                socket.close();
-            }
-        } catch (IOException e) {
-            // Il fallimento della chiusura non costituisce un errore
-            // rilevante per l'utente e non richiede segnalazione.
-        }
+        scarta();
     }
 }

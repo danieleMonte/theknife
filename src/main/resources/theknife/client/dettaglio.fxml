@@ -30,5 +30,9 @@
         <Button text="Rimuovi dai preferiti" onAction="#onRimuoviPreferito"/>
         <Button text="Scrivi una recensione" onAction="#onScriviRecensione"/>
     </HBox>
+    <HBox fx:id="barraAzioniGestore" spacing="8">
+        <Button fx:id="bottoneRivendica" text="Prendi in gestione questo ristorante"
+                onAction="#onRivendica"/>
+    </HBox>
     <Label fx:id="etichettaNota" style="-fx-text-fill: gray;"/>
 </VBox>

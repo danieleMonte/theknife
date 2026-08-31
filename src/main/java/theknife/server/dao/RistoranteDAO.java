@@ -277,18 +277,17 @@ public class RistoranteDAO {
      * Inserisce un nuovo ristorante associato al gestore autenticato.
      * <p>
      * La validazione delle coordinate geografiche prevede tre controlli:
-     * (1) latitudine e longitudine sono facoltative; se omesse e la
-     * citta' e' gia' presente nel database, viene utilizzato il relativo
-     * baricentro; (2) se indicate, devono rientrare nei range geografici
-     * validi; (3) se la citta' e' gia' nota, non possono distare piu' di
-     * {@value #SCARTO_MAX_KM} km dagli altri ristoranti della stessa
-     * citta', poiche' un valore fuori soglia e' con elevata probabilita'
-     * un errore di inserimento.
+     * (1) latitudine e longitudine sono obbligatorie, poiche' determinano
+     * la posizione su cui si basa l'intera ricerca per distanza;
+     * (2) devono rientrare nei range geografici validi; (3) se la citta'
+     * e' gia' nota, non possono distare piu' di {@value #SCARTO_MAX_KM} km
+     * dagli altri ristoranti della stessa citta', poiche' un valore fuori
+     * soglia e' con elevata probabilita' un errore di inserimento.
      *
      * @param idGestore identificativo del gestore (dalla sessione server)
      * @param richiesta richiesta con i dati del ristorante: {@code nome},
      *                  {@code nazione}, {@code citta}, {@code indirizzo},
-     *                  {@code latitudine}, {@code longitudine} (facoltative),
+     *                  {@code latitudine}, {@code longitudine},
      *                  {@code prezzoMedio}, {@code delivery},
      *                  {@code prenotazione}, {@code tipoCucina}
      * @return risposta di successo, o errore se i dati non sono validi
@@ -306,40 +305,31 @@ public class RistoranteDAO {
         }
         Double latitudine = (Double) richiesta.get("latitudine");
         Double longitudine = (Double) richiesta.get("longitudine");
+        if (latitudine == null || longitudine == null) {
+            return Response.errore("Latitudine e longitudine sono obbligatorie: "
+                    + "puoi ricavarle da Google Maps con un click destro sul luogo "
+                    + "(es. Legnano: 45.60 e 8.92)");
+        }
+        if (latitudine < -90 || latitudine > 90
+                || longitudine < -180 || longitudine > 180) {
+            return Response.errore("Coordinate non valide: latitudine tra -90 e 90, "
+                    + "longitudine tra -180 e 180 (es. Legnano: 45.60, 8.92)");
+        }
 
         try (Connection conn = DBConnection.getIstanza().nuovaConnessione()) {
+            // Controllo di coerenza: coordinate significativamente distanti
+            // dagli altri ristoranti della citta' sono con elevata
+            // probabilita' errate, e un valore errato comprometterebbe la
+            // ricerca per l'intera citta'. Per una citta' non ancora presente
+            // il confronto non e' possibile e il controllo viene omesso.
             double[] riferimento = baricentroCitta(conn, citta);
-
-            if (latitudine == null || longitudine == null) {
-                // Coordinate non fornite: se la citta' e' gia' nota, si utilizza
-                // il relativo baricentro, evitando che il gestore debba
-                // reperire manualmente le coordinate (con il conseguente
-                // rischio di errore).
-                if (riferimento == null) {
-                    return Response.errore("\"" + citta + "\" non e' ancora su TheKnife: "
-                            + "per una nuova citta' indica latitudine e longitudine");
-                }
-                latitudine = riferimento[0];
-                longitudine = riferimento[1];
-            } else {
-                if (latitudine < -90 || latitudine > 90
-                        || longitudine < -180 || longitudine > 180) {
-                    return Response.errore("Coordinate non valide: latitudine tra -90 e 90, "
-                            + "longitudine tra -180 e 180 (es. Legnano: 45.60, 8.92)");
-                }
-                // Controllo di coerenza: coordinate significativamente distanti
-                // dagli altri ristoranti della citta' sono con elevata
-                // probabilita' errate, e un valore errato comprometterebbe la
-                // ricerca per l'intera citta'.
-                if (riferimento != null) {
-                    double scarto = distanzaKm(latitudine, longitudine,
-                            riferimento[0], riferimento[1]);
-                    if (scarto > SCARTO_MAX_KM) {
-                        return Response.errore(String.format(
-                                "Le coordinate distano %.0f km dagli altri ristoranti di %s: "
-                                + "controlla latitudine e longitudine, oppure lasciale vuote "
-                                + "per usare il centro della citta'", scarto, citta));
-                    }
+            if (riferimento != null) {
+                double scarto = distanzaKm(latitudine, longitudine,
+                        riferimento[0], riferimento[1]);
+                if (scarto > SCARTO_MAX_KM) {
+                    return Response.errore(String.format(
+                            "Le coordinate distano %.0f km dagli altri ristoranti di %s: "
+                            + "controlla latitudine e longitudine", scarto, citta));
                 }
             }
 

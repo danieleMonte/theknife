@@ -21,7 +21,7 @@
 
     <Separator/>
 
-    <TextField fx:id="campoUsername" promptText="Username / E-mail"/>
+    <TextField fx:id="campoUsername" promptText="E-mail"/>
     <PasswordField fx:id="campoPassword" promptText="Password"/>
     <Label fx:id="etichettaErrore" style="-fx-text-fill: red;"/>
 

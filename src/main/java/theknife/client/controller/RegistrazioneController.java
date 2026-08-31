@@ -68,6 +68,11 @@ public class RegistrazioneController {
             etichettaErrore.setText("Indirizzo e-mail non valido (es. nome@dominio.it)");
             return;
         }
+        if (!Utente.passwordValida(password)) {
+            etichettaErrore.setText("La password deve contenere almeno "
+                    + Utente.LUNGHEZZA_MIN_PASSWORD + " caratteri, con almeno una lettera e una cifra");
+            return;
+        }
         if (!password.equals(campoConferma.getText())) {
             etichettaErrore.setText("Le password non coincidono");
             return;

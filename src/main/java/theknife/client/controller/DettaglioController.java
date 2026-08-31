@@ -57,7 +57,12 @@ public class DettaglioController {
                 && sessione.getUtente().getRuolo() == Ruolo.CLIENTE;
         barraAzioniCliente.setVisible(cliente);
         barraAzioniCliente.setManaged(cliente);
-        if (!cliente) {
+        // L'invito ad accedere riguarda i soli utenti guest: proporlo a un
+        // gestore sarebbe fuorviante, dato che e' gia' autenticato e dispone
+        // di azioni proprie. La nota destinata ai gestori viene impostata da
+        // aggiornaAzioniGestore(), che conosce lo stato di titolarita' del
+        // ristorante e viene invocato solo dopo imposta().
+        if (!sessione.isLoggato()) {
             etichettaNota.setText("Accedi come cliente per salvare i preferiti e recensire");
         }
         // La barra del gestore resta nascosta finche' imposta() non verifica che
@@ -121,7 +126,10 @@ public class DettaglioController {
         boolean rivendicabile = gestore && ristorante.getIdGestore() == 0;
         barraAzioniGestore.setVisible(rivendicabile);
         barraAzioniGestore.setManaged(rivendicabile);
-        if (gestore && !rivendicabile) {
+        if (rivendicabile) {
+            etichettaNota.setText("Questo ristorante non ha ancora un gestore: "
+                    + "puoi prenderlo in carico");
+        } else if (gestore) {
             etichettaNota.setText(ristorante.getIdGestore() == sessione.getUtente().getId()
                     ? "Questo ristorante e' gia' tra quelli che gestisci"
                     : "Questo ristorante e' gia' gestito da un altro utente");

@@ -384,7 +384,7 @@ public class MainController {
         griglia.setVgap(8);
         griglia.setPadding(new Insets(10));
         String[] etichette = {"Nome *", "Nazione *", "Citta' *", "Indirizzo *",
-                "Latitudine", "Longitudine", "Prezzo medio (€) *", "Tipo di cucina *"};
+                "Latitudine *", "Longitudine *", "Prezzo medio (€) *", "Tipo di cucina *"};
         TextField[] campi = {nome, nazione, citta, indirizzo, latitudine, longitudine, prezzoMedio, tipoCucina};
         for (int riga = 0; riga < campi.length; riga++) {
             griglia.add(new Label(etichette[riga]), 0, riga);
@@ -392,19 +392,39 @@ public class MainController {
         }
         griglia.add(delivery, 1, campi.length);
         griglia.add(prenotazione, 1, campi.length + 1);
-        Label suggerimento = new Label("Coordinate: lasciale vuote per usare il centro della\n"
-                + "citta' (se gia' presente su TheKnife), oppure prendile da\n"
-                + "Google Maps (click destro sul luogo), es. Legnano: 45.60 e 8.92");
+        Label suggerimento = new Label("Coordinate: prendile da Google Maps (click destro sul\n"
+                + "luogo), es. Legnano: 45.60 e 8.92. Usa il punto come\n"
+                + "separatore decimale, non la virgola.");
         suggerimento.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
         griglia.add(suggerimento, 0, campi.length + 2, 2, 1);
         dialogo.getDialogPane().setContent(griglia);
 
+        // Motivo dello scarto dei dati, rilevato durante la conversione. Senza
+        // di esso il dialogo si limiterebbe a restituire null e la chiusura
+        // sarebbe indistinguibile da un annullamento volontario, lasciando
+        // l'utente senza alcuna spiegazione. (array di un elemento perche' una
+        // variabile locale usata in una lambda deve essere effettivamente final)
+        final String[] erroreDati = {null};
+
         dialogo.setResultConverter(bottone -> {
             if (bottone != ButtonType.OK) {
+                return null; // annullamento volontario: nessun messaggio
+            }
+            if (nome.getText().isBlank() || nazione.getText().isBlank()
+                    || citta.getText().isBlank() || indirizzo.getText().isBlank()
+                    || tipoCucina.getText().isBlank() || prezzoMedio.getText().isBlank()) {
+                erroreDati[0] = "Compila tutti i campi obbligatori (*)";
+                return null;
+            }
+            // Le coordinate sono obbligatorie: determinano la posizione su cui
+            // si basa la ricerca per distanza.
+            if (latitudine.getText().isBlank() || longitudine.getText().isBlank()) {
+                erroreDati[0] = "Latitudine e longitudine sono obbligatorie: puoi ricavarle "
+                        + "da Google Maps con un click destro sul luogo (es. Legnano: 45.60 e 8.92)";
                 return null;
             }
             try {
-                Request nuova = new Request(Operazione.AGGIUNGI_RISTORANTE)
+                return new Request(Operazione.AGGIUNGI_RISTORANTE)
                         .con("nome", nome.getText().trim())
                         .con("nazione", nazione.getText().trim())
                         .con("citta", citta.getText().trim())
@@ -412,24 +432,24 @@ public class MainController {
                         .con("prezzoMedio", Double.parseDouble(prezzoMedio.getText().trim()))
                         .con("delivery", delivery.isSelected())
                         .con("prenotazione", prenotazione.isSelected())
-                        .con("tipoCucina", tipoCucina.getText().trim());
-                // Le coordinate sono incluse nella richiesta solo se valorizzate:
-                // in loro assenza il server utilizza il baricentro della citta'.
-                if (!latitudine.getText().trim().isEmpty()) {
-                    nuova.con("latitudine", Double.parseDouble(latitudine.getText().trim()));
-                }
-                if (!longitudine.getText().trim().isEmpty()) {
-                    nuova.con("longitudine", Double.parseDouble(longitudine.getText().trim()));
-                }
-                return nuova;
+                        .con("tipoCucina", tipoCucina.getText().trim())
+                        .con("latitudine", Double.parseDouble(latitudine.getText().trim()))
+                        .con("longitudine", Double.parseDouble(longitudine.getText().trim()));
             } catch (NumberFormatException e) {
-                return null; // segnalato sotto come dati non validi
+                erroreDati[0] = "Prezzo medio, latitudine e longitudine devono essere numeri "
+                        + "con il punto come separatore decimale (es. 45.60), non la virgola";
+                return null;
             }
         });
 
         Optional<Request> richiesta = dialogo.showAndWait();
         if (!richiesta.isPresent()) {
-            return; // annullato o dati numerici non validi
+            // Dati scartati: l'utente viene informato del motivo. In caso di
+            // annullamento volontario erroreDati resta null e non si segnala nulla.
+            if (erroreDati[0] != null) {
+                Navigazione.mostraErrore(erroreDati[0]);
+            }
+            return;
         }
         Response risposta = ClientConnection.getIstanza().invia(richiesta.get());
         if (risposta.isSuccesso()) {
